@@ -65,31 +65,28 @@ def parse_nm(input):
 
     for line in input:
         line = line.rstrip()
-        match = sym_re.match(line)
-        if match:
-            size, type, sym = match.groups()[0:3]
+        if match := sym_re.match(line):
+            size, type, sym = match.groups()[:3]
             size = int(size, 16)
             type = type.lower()
             if type in ['u', 'v']:
                 type = 'w'  # just call them all weak
             if type == 'b':
                 continue  # skip all BSS for now
-            path = match.group(4)
+            path = match[4]
             yield sym, type, size, path
             continue
-        match = addr_re.match(line)
-        if match:
-            type, sym = match.groups()[0:2]
+        if match := addr_re.match(line):
+            type, sym = match.groups()[:2]
             # No size == we don't care.
             continue
-        match = noaddr_re.match(line)
-        if match:
+        if match := noaddr_re.match(line):
             type, sym = match.groups()
             if type in ('U', 'w'):
                 # external or weak symbol
                 continue
 
-        print >>sys.stderr, 'unparsed:', repr(line)
+        line = line.rstrip()
 
 def demangle(ident, cppfilt):
     if cppfilt and ident.startswith('_Z'):
@@ -100,7 +97,7 @@ def demangle(ident, cppfilt):
 
 class Suffix:
     def __init__(self, suffix, replacement):
-        self.pattern = '^(.*)' + suffix + '(.*)$'
+        self.pattern = f'^(.*){suffix}(.*)$'
         self.re = re.compile(self.pattern)
         self.replacement = replacement
 
@@ -120,7 +117,7 @@ class SuffixCleanup:
             found = s.re.match(ident)
             if not found:
                 continue
-            to_append += [' [' + s.replacement + '.' + found.group(2) + ']']
+            to_append += [f' [{s.replacement}.{found.group(2)}]']
             ident = found.group(1) + found.group(3)
         if len(to_append) > 0:
             # Only try to demangle if there were suffixes.
@@ -162,8 +159,7 @@ def parse_cpp_name(name, cppfilt):
     def parse_one(val):
         """Returns (leftmost-part, remaining)."""
         op = val.find('operator')
-        if (op != -1 and
-            not (val[op + 8].isalnum() or val[op + 8] == '_')):
+        if op != -1 and not val[op + 8].isalnum() and val[op + 8] != '_':
             # Operator overload function, terminate.
             return (val, '')
         co = val.find('::')
@@ -183,16 +179,13 @@ def parse_cpp_name(name, cppfilt):
                 gt = gt + 1
                 assert gt < len(val), val
                 if val[gt] == '<':
-                    open_tmpl = open_tmpl + 1
+                    open_tmpl += 1
                 if val[gt] == '>':
-                    open_tmpl = open_tmpl - 1
+                    open_tmpl -= 1
             ret = val[gt+1:]
             if ret.startswith('::'):
                 ret = ret[2:]
-            if ret.startswith('('):
-                # Template function, terminate.
-                return (val, '')
-            return (val[:gt+1], ret)
+            return (val, '') if ret.startswith('(') else (val[:gt+1], ret)
         # Terminate with any function name, identifier, or unmangled name.
         return (val, '')
 
@@ -277,13 +270,15 @@ def jsonify_tree(tree, name):
             total += size
             assert len(symbols) == 1, symbols.values()[0] == 1
             symbol = symbol_type_to_human(list(symbols.keys())[0])
-            children.append({
-                    'name': key + ' ' + format_bytes(size),
+            children.append(
+                {
+                    'name': f'{key} {format_bytes(size)}',
                     'data': {
                         '$area': size,
                         '$symbol': symbol,
-                    }
-            })
+                    },
+                }
+            )
 
     children.sort(key=lambda child: -child['data']['$area'])
     dominant_symbol = ''
@@ -292,13 +287,13 @@ def jsonify_tree(tree, name):
             max(tree['$bloat_symbols'].items(),
                 key=operator.itemgetter(1))[0])
     return {
-        'name': name + ' ' + format_bytes(total),
+        'name': f'{name} {format_bytes(total)}',
         'data': {
             '$area': total,
             '$dominant_symbol': dominant_symbol,
-            },
+        },
         'children': children,
-        }
+    }
 
 
 def dump_nm(nmfile, strip_prefix, cppfilt):
@@ -315,8 +310,7 @@ def parse_objdump(input):
 
     for line in input:
         line = line.strip()
-        match = sec_re.match(line)
-        if match:
+        if match := sec_re.match(line):
             name, size = match.groups()
             if name.startswith('.'):
                 name = name[1:]
@@ -333,19 +327,21 @@ def jsonify_sections(name, sections):
     children = []
     total = 0
     for section, size in sections:
-        children.append({
-                'name': section + ' ' + format_bytes(size),
-                'data': { '$area': size }
-                })
+        children.append(
+            {
+                'name': f'{section} {format_bytes(size)}',
+                'data': {'$area': size},
+            }
+        )
         total += size
 
     children.sort(key=lambda child: -child['data']['$area'])
 
     return {
-        'name': name + ' ' + format_bytes(total),
-        'data': { '$area': total },
-        'children': children
-        }
+        'name': f'{name} {format_bytes(total)}',
+        'data': {'$area': total},
+        'children': children,
+    }
 
 
 def dump_sections(objdump):
@@ -353,10 +349,18 @@ def dump_sections(objdump):
     sections = jsonify_sections('sections', sections)
     debug_sections = jsonify_sections('debug', debug_sections)
     size = sections['data']['$area'] + debug_sections['data']['$area']
-    print('var kTree = ' + json.dumps({
-            'name': 'top ' + format_bytes(size),
-            'data': { '$area': size },
-            'children': [ debug_sections, sections ]}))
+    print(
+        (
+            'var kTree = '
+            + json.dumps(
+                {
+                    'name': f'top {format_bytes(size)}',
+                    'data': {'$area': size},
+                    'children': [debug_sections, sections],
+                }
+            )
+        )
+    )
 
 
 usage="""%prog [options] MODE
@@ -400,10 +404,16 @@ if mode == 'syms':
     try:
         res = subprocess.check_output([opts.cppfilt, 'main'], universal_newlines=True)
         if res.strip() != 'main':
-            print("%s failed demangling, output won't be demangled." % opts.cppfilt, file=sys.stderr)
+            print(
+                f"{opts.cppfilt} failed demangling, output won't be demangled.",
+                file=sys.stderr,
+            )
             opts.cppfilt = None
     except:
-        print("Could not find c++filt at %s, output won't be demangled." % opts.cppfilt, file=sys.stderr)
+        print(
+            f"Could not find c++filt at {opts.cppfilt}, output won't be demangled.",
+            file=sys.stderr,
+        )
         opts.cppfilt = None
     dump_nm(nmfile, strip_prefix=opts.strip_prefix, cppfilt=opts.cppfilt)
 elif mode == 'sections':
@@ -420,7 +430,7 @@ elif mode == 'dump':
             continue  # skip bss and weak symbols
         if path is None:
             path = ''
-        if opts.filter and not (opts.filter in sym or opts.filter in path):
+        if opts.filter and opts.filter not in sym and opts.filter not in path:
             continue
         print('%6s %s (%s) %s' % (format_bytes(size), sym,
                                   symbol_type_to_human(type), path))

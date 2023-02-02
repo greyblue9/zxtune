@@ -52,15 +52,10 @@ def is_file_ok(args, file):
         return False
 
     file_test = os.path.basename(file)
-    if args.filter_exclude:
-        if args.p_exclude.match(file_test) != None:
-            return False
+    if args.filter_exclude and args.p_exclude.match(file_test) != None:
+        return False
 
-    if args.filter_include:
-        if args.p_include.match(file_test) == None:
-            return False
-
-    return True
+    return not args.filter_include or args.p_include.match(file_test) is not None
 
 def get_txtp_name(args, file):
     txtp_name = ''
@@ -110,7 +105,7 @@ def main():
             continue
 
         name = get_txtp_name(args, file)
-        if not name in txtps:
+        if name not in txtps:
             txtps[name] = []
         txtps[name].append(file)
 
@@ -122,9 +117,9 @@ def main():
 
     # list info
     for name, segments in txtps.items():
-        print("file: " + name)
+        print(f"file: {name}")
         for segment in segments:
-            print("  " + segment)
+            print(f"  {segment}")
 
     if args.list:
         exit()
@@ -133,7 +128,7 @@ def main():
     for name, segments in txtps.items():
         len_segments = len(segments)
         with open(name,"w+") as ftxtp:
-            for i, segment in enumerate(segments):
+            for segment in segments:
                 if args.command_loop_force and len_segments == 1:
                     ftxtp.write(segment + " #e\n")
                 else:
@@ -142,11 +137,11 @@ def main():
             if args.command_loop_auto or args.command_loop_force and len_segments > 1:
                 ftxtp.write("loop_mode = auto\n")
             if args.command_loop_start:
-                ftxtp.write("loop_start_segment = " + args.command_loop_start + "\n")
+                ftxtp.write(f"loop_start_segment = {args.command_loop_start}" + "\n")
             if args.command_loop_end:
-                ftxtp.write("loop_end_segment = " + args.command_loop_end + "\n")
+                ftxtp.write(f"loop_end_segment = {args.command_loop_end}" + "\n")
             if args.command_volume:
-                ftxtp.write("commands = #@volume " + args.command_volume + "\n")
+                ftxtp.write(f"commands = #@volume {args.command_volume}" + "\n")
             if args.command:
                 ftxtp.write(args.command.replace("\\n", "\n") + "\n")
 

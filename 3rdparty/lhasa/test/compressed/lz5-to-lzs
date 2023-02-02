@@ -74,7 +74,6 @@ def process_run():
 	for i in range(8):
 		if (bitmap & (1 << i)) != 0:
 			b = sys.stdin.read(1)
-			print >>sys.stderr, "byte: %s" % b
 			history[history_pos] = b
 			history_pos = (history_pos + 1) % 4096
 
@@ -87,8 +86,6 @@ def process_run():
 
 			if pos > history_pos:
 				distance = history_pos + 4096 - pos
-
-			print >>sys.stderr, "copy: %i, %i" % (distance, count)
 
 			for i in range(count):
 				b = history[(pos + i) % 4096]
@@ -120,6 +117,8 @@ def process_run():
 				output_cmd_byte(ord(b))
 			else:
 				output_cmd_copy(distance, count)
+
+		b = sys.stdin.read(1)
 
 
 while True:

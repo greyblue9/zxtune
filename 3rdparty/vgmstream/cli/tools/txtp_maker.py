@@ -177,19 +177,14 @@ class TxtpInfo(object):
             return None
         cut_pos = find_pos + len(str)
         str_cut = self.output[cut_pos:]
-        if full:
-            return str_cut.split("\n")[0].strip()
-        else:
-            return str_cut.split()[0].strip()
+        return str_cut.split("\n")[0].strip() if full else str_cut.split()[0].strip()
 
     def _get_text(self, str):
         return self._get_string(str, full=True)
 
     def _get_value(self, str):
         res = self._get_string(str)
-        if not res:
-           return 0
-        return int(res)
+        return int(res) if res else 0
 
 # Saves .txtp (usually 1 but may do N) to make from CLI outputs
 class TxtpMaker(object):
@@ -240,10 +235,7 @@ class TxtpMaker(object):
             if p.match(self.info.stream_name) is None:
                 return True
 
-        if self.info.encoding.lower() == 'silence':
-            return True
-
-        return False
+        return self.info.encoding.lower() == 'silence'
 
     def _get_stream_mask(self, layer):
         if layer + self.cfg.layers > self.info.channels:
@@ -253,7 +245,7 @@ class TxtpMaker(object):
 
         mask = '#C'
         for ch in range(1, loops):
-            mask += str(layer + ch) + ','
+            mask += f'{str(layer + ch)},'
         return mask[:-1]
 
     def _clean_stream_name(self):
@@ -294,34 +286,31 @@ class TxtpMaker(object):
         outname += '.txtp'
 
         if len(outname) > PATH_LIMIT:
-            outname = outname[0:PATH_LIMIT] + '[...].txtp'
+            outname = f'{outname[:PATH_LIMIT]}[...].txtp'
 
         cfg = self.cfg
         exists = os.path.exists(outname)
         if exists and (cfg.overwrite_rename or cfg.overwrite_suffix):
             must_rename = True
             if must_rename:
-                if outname in self.rename_map:
-                    rename_count = self.rename_map[outname]
-                else:
-                    rename_count = 0
+                rename_count = self.rename_map[outname] if outname in self.rename_map else 0
                 self.rename_map[outname] = rename_count + 1
                 outname = outname.replace(".txtp", "_%08i.txtp" % (rename_count))
 
         # decide action after (possible) renames above
         if os.path.exists(outname):
             if cfg.overwrite_ignore:
-                log.debug("ignored: " + outname)
+                log.debug(f"ignored: {outname}")
                 return
 
             if not cfg.overwrite:
-                raise ValueError('TXTP exists in path: ' + outname)
+                raise ValueError(f'TXTP exists in path: {outname}')
 
         with open(outname,"w+", encoding='utf-8') as ftxtp:
             if line:
                 ftxtp.write(line)
 
-        log.debug("created: " + outname)
+        log.debug(f"created: {outname}")
         return
         
     def include(self, filename_path, filename_clean):
@@ -344,7 +333,7 @@ class TxtpMaker(object):
         if cfg.mini_txtp:
             outname = filename_path
             if index:
-                outname += "#" + index
+                outname += f"#{index}"
 
             if cfg.layers and cfg.layers < self.info.channels:
                 for layer in range(0, self.info.channels, cfg.layers):
@@ -385,16 +374,12 @@ class TxtpMaker(object):
                 # print optional info like "<text__{cmd}__>" only if value in {cmd} exists
                 optionals = pattern1.findall(txt)
                 for optional in optionals:
-                    has_values = False
                     cmds = pattern2.findall(optional)
-                    for cmd in cmds:
-                        if cmd in replaces and replaces[cmd] is not None:
-                            has_values = True
-                            break
+                    has_values = any(cmd in replaces and replaces[cmd] is not None for cmd in cmds)
                     if has_values: #leave text there (cmds will be replaced later)
-                        txt = txt.replace('<%s>' % optional, optional, 1)
+                        txt = txt.replace(f'<{optional}>', optional, 1)
                     else:
-                        txt = txt.replace('<%s>' % optional, '', 1)
+                        txt = txt.replace(f'<{optional}>', '', 1)
 
                 # replace "{cmd}" if cmd exists with its value (non-existent values use '')
                 cmds = pattern2.findall(txt)
@@ -404,26 +389,24 @@ class TxtpMaker(object):
                         if value is None:
                            value = ''
                         txt = txt.replace('{%s}' % cmd, value, 1)
-                outname = "%s" % (txt)
+                outname = f"{txt}"
 
-            # no name set, or empty results above            
+            # no name set, or empty results above
             if not outname:
-                outname = "%s" % (filename_base)
+                outname = f"{filename_base}"
                 if index:
-                    outname += "_" + index
+                    outname += f"_{index}"
 
             line = ''
             if cfg.subdir:
                 line += cfg.subdir
             line += filename_clean
             if index:
-                line += "#" + index
+                line += f"#{index}"
 
             if cfg.layers and cfg.layers < self.info.channels:
-                done = 0
-                for layer in range(0, self.info.channels, cfg.layers):
+                for done, layer in enumerate(range(0, self.info.channels, cfg.layers)):
                     sub = chr(ord('a') + done)
-                    done += 1
                     mask = self._get_stream_mask(layer)
                     self._add(outname + sub, line + mask)
                     total_done += 1
@@ -504,13 +487,11 @@ class App(object):
         if self.cfg.cli:
             clis.append(self.cfg.cli)
         else:
-            clis.append('vgmstream_cli')
-            clis.append('test.exe')
-
+            clis.extend(('vgmstream_cli', 'test.exe'))
         for cli in clis:
             try:
                 with open(os.devnull, 'wb') as DEVNULL: #subprocess.STDOUT #py3 only
-                    cmd = "%s" % (cli)
+                    cmd = f"{cli}"
                     subprocess.check_call(cmd, stdout=DEVNULL, stderr=DEVNULL)
                 self.cfg.cli = cli
                 return True #exists and returns ok
@@ -524,11 +505,13 @@ class App(object):
         return False
 
     def _make_cmd(self, filename_in, filename_out, target_subsong):
-        if self.cfg.test_dupes:
-            cmd = "%s -s %s -i -o \"%s\" \"%s\"" % (self.cfg.cli, target_subsong, filename_out, filename_in)
-        else:
-            cmd = "%s -s %s -m -i -O \"%s\"" % (self.cfg.cli, target_subsong, filename_in)
-        return cmd
+        return (
+            "%s -s %s -i -o \"%s\" \"%s\""
+            % (self.cfg.cli, target_subsong, filename_out, filename_in)
+            if self.cfg.test_dupes
+            else "%s -s %s -m -i -O \"%s\""
+            % (self.cfg.cli, target_subsong, filename_in)
+        )
 
     def _find_files(self, dir, pattern):
         if os.path.isfile(pattern):
@@ -541,16 +524,17 @@ class App(object):
             if dirsep in pattern:
                 index = pattern.rfind(dirsep)
                 if index >= 0:
-                    dir = pattern[0:index]
+                    dir = pattern[:index]
                     pattern = pattern[index+1:]
 
         files = []
         for root, dirnames, filenames in os.walk(dir):
             # manually test name as is too, as filter wouldn't handle stuff like "bgm[us].wav"
-            for filename in filenames:
-                if filename == pattern or fnmatch.fnmatch(filename, pattern):
-                    files.append(os.path.join(root, filename))
-
+            files.extend(
+                os.path.join(root, filename)
+                for filename in filenames
+                if filename == pattern or fnmatch.fnmatch(filename, pattern)
+            )
             if not self.cfg.recursive:
                 break
 
@@ -582,7 +566,7 @@ class App(object):
             if filename_in.startswith(".\\"):
                 filename_in = filename_in[2:]
 
-            filename_out = ".temp." + filename_in_base + ".wav"
+            filename_out = f".temp.{filename_in_base}.wav"
             created = 0
             dupes = 0
             errors = 0

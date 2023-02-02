@@ -18,7 +18,7 @@ class MyServer(ThreadingMixIn, HTTPServer):
 def main():
     port = 8888
 
-    Handler.subst = dict()
+    Handler.subst = {}
     for arg in sys.argv[1:]:
         name, val = arg.split('=')
         Handler.subst[name] = val

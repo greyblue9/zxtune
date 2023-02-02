@@ -31,7 +31,7 @@ class Logger(object):
 		return ffi.string(lib.mLogCategoryName(category)).decode('UTF-8')
 
 	def log(self, category, level, message):
-		print("{}: {}".format(self.categoryName(category), message))
+		print(f"{self.categoryName(category)}: {message}")
 
 class NullLogger(Logger):
 	def log(self, category, level, message):

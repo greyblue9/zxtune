@@ -58,9 +58,8 @@ def parseOtoolLine(line, execPath, root):
 		return None, None, None, None
 	line = line[1:]
 	match = re.match('([@/].*) \(compatibility version.*\)', line)
-	path = match.group(1)
+	path = match[1]
 	split = splitPath(path)
-	newExecPath = ['@executable_path', '..', 'Frameworks']
 	newPath = execPath[:-1]
 	newPath.append('Frameworks')
 	if split[:3] == ['/', 'usr', 'lib'] or split[:2] == ['/', 'System']:
@@ -76,7 +75,7 @@ def parseOtoolLine(line, execPath, root):
 		isFramework = True
 		split, framework = findFramework(split)
 	newPath.append(split[-1])
-	newExecPath.append(split[-1])
+	newExecPath = ['@executable_path', '..', 'Frameworks', split[-1]]
 	if isFramework:
 		newPath.extend(framework)
 		newExecPath.extend(framework)
@@ -95,11 +94,11 @@ def updateMachO(bin, execPath, root):
 			continue
 		if os.access(newPath, os.F_OK):
 			if verbose:
-				print('Skipping copying {}, already done.'.format(oldPath))
+				print(f'Skipping copying {oldPath}, already done.')
 			newPath = None
 		elif os.path.abspath(oldPath) != os.path.abspath(newPath):
 			if verbose:
-				print('Copying {} to {}...'.format(oldPath, newPath))
+				print(f'Copying {oldPath} to {newPath}...')
 			parent, child = os.path.split(newPath)
 			makedirs(parent)
 			shutil.copy2(oldPath, newPath)
@@ -108,18 +107,18 @@ def updateMachO(bin, execPath, root):
 		if not qtPath and 'Qt' in oldPath:
 			qtPath = findQtPath(oldPath)
 			if verbose:
-				print('Found Qt path at {}.'.format(qtPath))
+				print(f'Found Qt path at {qtPath}.')
 	args = [installNameTool]
 	for path, oldExecPath, newExecPath in toUpdate:
 		if path != bin:
 			if path:
 				updateMachO(path, execPath, root)
 			if verbose:
-				print('Updating Mach-O load from {} to {}...'.format(oldExecPath, newExecPath))
+				print(f'Updating Mach-O load from {oldExecPath} to {newExecPath}...')
 			args.extend(['-change', oldExecPath, newExecPath])
 		else:
 			if verbose:
-				print('Updating Mach-O id from {} to {}...'.format(oldExecPath, newExecPath))
+				print(f'Updating Mach-O id from {oldExecPath} to {newExecPath}...')
 			args.extend(['-id', newExecPath])
 	args.append(bin)
 	subprocess.check_call(args)

@@ -17,17 +17,25 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 shutil.rmtree('html', ignore_errors=True)
 shutil.copytree('source', 'html')
 
-style = urlopen(base_url + '/load.php?debug=false&lang=en&modules=mediawiki.legacy.commonPrint%2Cshared%7Cmediawiki.page.gallery.styles%7Cmediawiki.skinning.interface%7Cskins.vector.styles%7Csite.styles&only=styles&skin=vector').read().decode('UTF-8')
+style = (
+    urlopen(
+        f'{base_url}/load.php?debug=false&lang=en&modules=mediawiki.legacy.commonPrint%2Cshared%7Cmediawiki.page.gallery.styles%7Cmediawiki.skinning.interface%7Cskins.vector.styles%7Csite.styles&only=styles&skin=vector'
+    )
+    .read()
+    .decode('UTF-8')
+)
 
 # Remove a few unused CSS classes
 style = re.sub(r'\}(\w+)?[\.#]vector([\w >]+)\{.+?\}', '}', style)
-style_file = open('html/style.css', 'w')
-style_file.write(style)
-style_file.close()
+with open('html/style.css', 'w') as style_file:
+    style_file.write(style)
+toc_page = (
+    urlopen(f'{base_url}/index.php?title=Manual:_CHM_TOC&action=render')
+    .read()
+    .decode('UTF-8')
+)
 
-toc_page = urlopen(base_url + '/index.php?title=Manual:_CHM_TOC&action=render').read().decode('UTF-8')
-
-pages = re.findall('href="' + base_url_regex + '/(.+?)"', toc_page)
+pages = re.findall(f'href="{base_url_regex}/(.+?)"', toc_page)
 
 def destname(p):
     p = p.split(':_')[1]
@@ -37,8 +45,8 @@ def destname(p):
         p = p.replace('__', '_')
     if p.find('#') >= 0:
         parts = p.split('#')
-        return parts[0] + '.html#' + parts[1]
-    return p + '.html'
+        return f'{parts[0]}.html#{parts[1]}'
+    return f'{p}.html'
     
 def title(p):
     p = p.split(':_')[1]
@@ -51,19 +59,18 @@ def localurl(p):
 
 def replace_images(m):
     global base_url
-    filepath = m.group(1) + '/' + m.group(2) + '/'
+    filepath = f'{m.group(1)}/{m.group(2)}/'
     filename = m.group(3)
     project.write(filename + "\n")
 
-    urlretrieve(base_url + '/images/' + filepath + filename, 'html/' + filename)
-    return '"' + filename + '"'
+    urlretrieve(f'{base_url}/images/{filepath}{filename}', f'html/{filename}')
+    return f'"{filename}"'
 
 def fix_internal_links(m):
-    return '<a href="' + localurl(m.group(1)) + '"'
+    return f'<a href="{localurl(m.group(1))}"'
 
-project = open('html/OpenMPT Manual.hhp', 'w')
-
-project.write("""[OPTIONS]
+with open('html/OpenMPT Manual.hhp', 'w') as project:
+    project.write("""[OPTIONS]
 Compatibility=1.1 or later
 Compiled file=OpenMPT Manual.chm
 Contents file=OpenMPT Manual.hhc
@@ -84,30 +91,38 @@ bullet.png
 external.png
 """)
 
-for p in pages:
-    content = urlopen(base_url + '/index.php?title=' + p + '&action=render').read().decode('UTF-8')
-    # Download and replace image URLs
-    content = re.sub(r' srcset=".+?"', '', content);
-    content = re.sub(r'"/images/thumb/(\w+)/(\w+)/([^\/]+?)/([^\/]+?)"', replace_images, content)
-    content = re.sub(r'"/images/(\w+)/(\w+)/([^\/]+?)"', replace_images, content)
-    # Remove comments
-    content = re.sub(r'<!--(.+?)-->', '', content, flags = re.DOTALL)
-    # Fix local URLs
-    content = re.sub(r'<a href="' + base_url_regex + '/File:', '<a href="', content)
-    content = re.sub(r'<a href="' + base_url_regex + '/(Manual:.+?)"', fix_internal_links, content)
-    content = re.sub(r'<a href="/(Manual:.+?)"', fix_internal_links, content)
-    # Remove templates that shouldn't turn up in the manual
-    content = re.sub(r'<div class="todo".+?</div>', '', content, flags = re.DOTALL);
-    content = re.sub(r'<p class="newversion".+?</p>', '', content, flags = re.DOTALL);
-    # Don't need this attribute in our CHM
-    content = re.sub(r' rel="nofollow"', '', content);
-    
-    section = re.match(r'(.+)/', title(p))
-    section_str = ''
-    if section:
-        section_str =  section.group(1)
-    
-    content = """<!DOCTYPE html>
+    for p in pages:
+        content = (
+            urlopen(f'{base_url}/index.php?title={p}&action=render')
+            .read()
+            .decode('UTF-8')
+        )
+        # Download and replace image URLs
+        content = re.sub(r' srcset=".+?"', '', content);
+        content = re.sub(r'"/images/thumb/(\w+)/(\w+)/([^\/]+?)/([^\/]+?)"', replace_images, content)
+        content = re.sub(r'"/images/(\w+)/(\w+)/([^\/]+?)"', replace_images, content)
+        # Remove comments
+        content = re.sub(r'<!--(.+?)-->', '', content, flags = re.DOTALL)
+            # Fix local URLs
+        content = re.sub(f'<a href="{base_url_regex}/File:', '<a href="', content)
+        content = re.sub(
+            f'<a href="{base_url_regex}/(Manual:.+?)"',
+            fix_internal_links,
+            content,
+        )
+        content = re.sub(r'<a href="/(Manual:.+?)"', fix_internal_links, content)
+        # Remove templates that shouldn't turn up in the manual
+        content = re.sub(r'<div class="todo".+?</div>', '', content, flags = re.DOTALL);
+        content = re.sub(r'<p class="newversion".+?</p>', '', content, flags = re.DOTALL);
+        # Don't need this attribute in our CHM
+        content = re.sub(r' rel="nofollow"', '', content);
+
+        section = re.match(r'(.+)/', title(p))
+        section_str = ''
+        if section:
+            section_str = section[1]
+
+        content = """<!DOCTYPE html>
     <html lang="en">
     <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -118,16 +133,11 @@ for p in pages:
     </head>
     <body>
     <h1>""" + title(p) + '</h1><div id="content" class="mw-body">' + content + '</div></body></html>'
-    
-    saved = open('html/' + destname(p), 'wb')
-    
-    saved.write(bytes(content, 'UTF-8'))
-    saved.close()
-    
-    project.write(destname(p)+"\n")
-    print(p)
-    
-project.close()
+
+        with open(f'html/{destname(p)}', 'wb') as saved:
+            saved.write(bytes(content, 'UTF-8'))
+        project.write(destname(p)+"\n")
+        print(p)
 
 # Create TOC
 toc = open('html/OpenMPT Manual.hhc', 'w')
@@ -158,7 +168,9 @@ def toc_parse_chapter(m):
 toc_text = re.sub(r'<!--(.+?)-->', '', toc_page, flags = re.DOTALL)
 toc_text = re.sub(r'<div(.+?)>', '', toc_text, flags = re.DOTALL)
 toc_text = re.sub(r'</div>', '', toc_text, flags = re.DOTALL)
-toc_text = re.sub(r'<a href="' + base_url_regex + '/(.+?)".*?>(.+?)</a>', toc_parse, toc_text)
+toc_text = re.sub(
+    f'<a href="{base_url_regex}/(.+?)".*?>(.+?)</a>', toc_parse, toc_text
+)
 toc_text = re.sub(r'<li>([^<]+)$', toc_parse_chapter, toc_text, flags = re.MULTILINE)
 toc.write(toc_text)
 
