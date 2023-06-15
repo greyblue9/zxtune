@@ -89,7 +89,7 @@ class App(object):
                     if ':' in line:
                         index = line.find(':') #internal txtp : txtp name
 
-                        text = line[0:index].strip()
+                        text = line[:index].strip()
                         name = line[index+1:].strip()
 
                     elif self.args.maxitxtp or subdir:
@@ -98,13 +98,13 @@ class App(object):
                         if line[index:].startswith('.txtp'): #???
                             continue
 
-                        name = line[0:index] + '.txtp'
+                        name = f'{line[:index]}.txtp'
 
                         text = line.replace('.txtp', '').strip()
                         if subdir:
                             subdir.replace('\\', '/')
                             if not subdir.endswith('/'):
-                                subdir = subdir + '/'
+                                subdir = f'{subdir}/'
                             text = subdir + text
                     else:
                         # should be a mini-txtp, but if name isn't "file.ext.txtp" and just "file.txtp",
@@ -116,7 +116,7 @@ class App(object):
                         subname, _ = os.path.splitext(basename)
                         _, subext = os.path.splitext(subname)
                         if not subext:
-                            print("ignored pre-txtp: %s" % (basename))
+                            print(f"ignored pre-txtp: {basename}")
                             continue
 
                     outpath = os.path.join(path, name)
@@ -124,11 +124,10 @@ class App(object):
                     with open(outpath, 'w') as fo:
                         if text:
                             fo.write(text)
-                        pass
                     count += 1
 
                 if not count:
-                    print("%s: no .txtp found" % (filename))
+                    print(f"{filename}: no .txtp found")
                 else:
                     print("%s: total %i .txtp" % (filename, count))
 

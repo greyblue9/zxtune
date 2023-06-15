@@ -15,14 +15,13 @@ class SongLengths:
     md5s = set()
     crcs = set()
     for line in stream:
-      props = SongLengths.LINEFORMAT.match(line)
-      if props:
+      if props := SongLengths.LINEFORMAT.match(line):
         md5 = props.group(1)
         if md5 in md5s:
-          raise Exception('Duplicated song with md5=' + md5)
+          raise Exception(f'Duplicated song with md5={md5}')
         crc = binascii.crc32(md5.encode('utf-8')) & 0xffffffff
         if crc in crcs:
-          raise Exception('Collision for md5=' + md5 + ' crc=' + crc)
+          raise Exception(f'Collision for md5={md5} crc={crc}')
         times = [SongLengths._timeFromString(strTime) for strTime in props.group(2).split() if len(strTime) != 0]
         self._songs.append({'crc': crc, 'md5': md5, 'duration': times})
         self._durations.extend(times)
@@ -33,7 +32,7 @@ class SongLengths:
     for song in self._songs:
       crc = song['crc']
       md5 = song['md5']
-      print('//' + md5, file = stream)
+      print(f'//{md5}', file = stream)
       for duration in song['duration']:
         print('{0x%08x, %d},' % (crc, duration), file = stream)
 

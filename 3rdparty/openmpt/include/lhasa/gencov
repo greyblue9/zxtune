@@ -32,7 +32,7 @@ def parse_stats(text):
 	cov_lines = int(float(pct) * lines / 100 + 0.5)
 	uncov_lines = lines - cov_lines
 
-	return (pct + "%", uncov_lines, cov_lines, lines)
+	return f"{pct}%", uncov_lines, cov_lines, lines
 
 
 def gcov(filename):
@@ -43,7 +43,7 @@ def gcov(filename):
 	old_wd = getcwd()
 	src_dir = dirname(filename)
 	chdir(src_dir)
-	s = popen("gcov %s" % basename(filename))
+	s = popen(f"gcov {basename(filename)}")
 	chdir(old_wd)
 
 	# Process output from gcov.
@@ -56,12 +56,10 @@ def gcov(filename):
 	# Lines executed:88.97% of 136
 
 	for line in s:
-		m = match(r"File '(.*)'", line)
-		if m:
+		if m := match(r"File '(.*)'", line):
 			filename = m.group(1)
 
-		m = match(r"Lines executed:(.*)", line)
-		if m:
+		if m := match(r"Lines executed:(.*)", line):
 			full_path = path_join(src_dir, filename)
 			results[full_path] = parse_stats(m.group(1))
 
@@ -74,14 +72,13 @@ def format_output(filename, stats):
 
 print
 format_output("Filename", ("Percent", "Uncov", "Cov", "Total"))
-print " " + ("-" * 65)
-
+print
 for filename in sorted(sys.argv[1:]):
 	gcno = filename.replace(".c", ".gcno")
 	gcda = filename.replace(".c", ".gcda")
 
-	xgcno = glob(path_join(dirname(gcno), "*-" + basename(gcno)))
-	xgcda = glob(path_join(dirname(gcda), "*-" + basename(gcda)))
+	xgcno = glob(path_join(dirname(gcno), f"*-{basename(gcno)}"))
+	xgcda = glob(path_join(dirname(gcda), f"*-{basename(gcda)}"))
 
 	# Must rename eg. liblhasatest_a-foo.gcno to foo.gcno:
 
@@ -109,7 +106,7 @@ for filename in sorted(sys.argv[1:]):
 			continue
 
 		if subfile != filename:
-			format_output(" -> " + subfile, results[subfile])
+			format_output(f" -> {subfile}", results[subfile])
 
 print
 

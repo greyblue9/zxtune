@@ -17,7 +17,7 @@ class PerfTest(object):
         self.rom = rom
         self.renderer = renderer
         self.results = None
-        self.name = 'Perf Test: {}'.format(rom)
+        self.name = f'Perf Test: {rom}'
 
     def get_args(self):
         return []
@@ -52,7 +52,7 @@ class WallClockTest(PerfTest):
     def __init__(self, rom, duration, renderer='software'):
         super(WallClockTest, self).__init__(rom, renderer)
         self.duration = duration
-        self.name = 'Wall-Clock Test ({} seconds, {} renderer): {}'.format(duration, renderer, rom)
+        self.name = f'Wall-Clock Test ({duration} seconds, {renderer} renderer): {rom}'
 
     def wait(self, proc):
         time.sleep(self.duration)
@@ -62,7 +62,7 @@ class GameClockTest(PerfTest):
     def __init__(self, rom, frames, renderer='software'):
         super(GameClockTest, self).__init__(rom, renderer)
         self.frames = frames
-        self.name = 'Game-Clock Test ({} frames, {} renderer): {}'.format(frames, renderer, rom)
+        self.name = f'Game-Clock Test ({frames} frames, {renderer} renderer): {rom}'
 
     def get_args(self):
         return ['-F', str(self.frames)]
@@ -72,10 +72,7 @@ class PerfServer(object):
 
     def __init__(self, address, command=None):
         s = address.rsplit(':', 1)
-        if len(s) == 1:
-            self.address = (s[0], 7216)
-        else:
-            self.address = (s[0], s[1])
+        self.address = (s[0], 7216) if len(s) == 1 else (s[0], s[1])
         if command:
             self.command = shlex.split(command)
         self.iterations = self.ITERATIONS_PER_INSTANCE
@@ -126,10 +123,14 @@ class Suite(object):
         self.server = server
 
     def collect_tests(self):
-        roms = []
-        for f in os.listdir(self.cwd):
-            if f.endswith('.gba') or f.endswith('.zip') or f.endswith('.gbc') or f.endswith('.gb'):
-                roms.append(f)
+        roms = [
+            f
+            for f in os.listdir(self.cwd)
+            if f.endswith('.gba')
+            or f.endswith('.zip')
+            or f.endswith('.gbc')
+            or f.endswith('.gb')
+        ]
         roms.sort()
         for rom in roms:
             self.add_tests(rom)
@@ -144,7 +145,7 @@ class Suite(object):
         results = []
         sock = None
         for test in self.tests:
-            print('Running test {}'.format(test.name), file=sys.stderr)
+            print(f'Running test {test.name}', file=sys.stderr)
             if self.server:
                 self.server.run(test)
             else:
@@ -180,9 +181,7 @@ if __name__ == '__main__':
         s.set_server(server)
     s.collect_tests()
     results = s.run()
-    fout = sys.stdout
-    if args.out:
-        fout = open(args.out, 'w')
+    fout = open(args.out, 'w') if args.out else sys.stdout
     writer = csv.DictWriter(fout, results[0].keys())
     writer.writeheader()
     writer.writerows(results)

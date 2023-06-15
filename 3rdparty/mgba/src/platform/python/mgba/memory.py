@@ -11,17 +11,17 @@ class MemoryView(object):
         self._width = width
         self._size = size
         self._base = base
-        self._busRead = getattr(self._core, "busRead" + str(width * 8))
-        self._busWrite = getattr(self._core, "busWrite" + str(width * 8))
-        self._rawRead = getattr(self._core, "rawRead" + str(width * 8))
-        self._rawWrite = getattr(self._core, "rawWrite" + str(width * 8))
+        self._busRead = getattr(self._core, f"busRead{str(width * 8)}")
+        self._busWrite = getattr(self._core, f"busWrite{str(width * 8)}")
+        self._rawRead = getattr(self._core, f"rawRead{str(width * 8)}")
+        self._rawWrite = getattr(self._core, f"rawWrite{str(width * 8)}")
         self._mask = (1 << (width * 8)) - 1 # Used to force values to fit within range so that negative values work
-        if sign == "u" or sign == "unsigned":
-            self._type = "uint{}_t".format(width * 8)
-        elif sign == "i" or sign == "s" or sign == "signed":
-            self._type = "int{}_t".format(width * 8)
+        if sign in ["u", "unsigned"]:
+            self._type = f"uint{width * 8}_t"
+        elif sign in ["i", "s", "signed"]:
+            self._type = f"int{width * 8}_t"
         else:
-            raise ValueError("Invalid sign type: '{}'".format(sign))
+            raise ValueError(f"Invalid sign type: '{sign}'")
 
     def _addrCheck(self, address):
         if isinstance(address, slice):
@@ -40,13 +40,12 @@ class MemoryView(object):
 
     def __getitem__(self, address):
         self._addrCheck(address)
-        if isinstance(address, slice):
-            start = address.start or 0
-            stop = self._size - self._width if address.stop is None else address.stop
-            step = address.step or self._width
-            return [int(ffi.cast(self._type, self._busRead(self._core, self._base + a))) for a in range(start, stop, step)]
-        else:
+        if not isinstance(address, slice):
             return int(ffi.cast(self._type, self._busRead(self._core, self._base + address)))
+        start = address.start or 0
+        stop = self._size - self._width if address.stop is None else address.stop
+        step = address.step or self._width
+        return [int(ffi.cast(self._type, self._busRead(self._core, self._base + a))) for a in range(start, stop, step)]
 
     def __setitem__(self, address, value):
         self._addrCheck(address)

@@ -4,30 +4,26 @@ import re
 import subprocess
 
 def getDeps(target):
-  print('Targets for ' + target)
+  print(f'Targets for {target}')
   proc = subprocess.run(['./gradlew', target, '--dry-run'], stdout=subprocess.PIPE)
-  result = set()
-  for line in proc.stdout.decode('utf-8').split():
-    if line.startswith(':zxtune:'):
-      result.add(line[8:])
-  return result
+  return {
+      line[8:]
+      for line in proc.stdout.decode('utf-8').split()
+      if line.startswith(':zxtune:')
+  }
 
 def checkDeps(descr):
   deps = getDeps(descr['target'])
   print(' Missing:')
   for req in descr['required']:
-    found = False
-    for d in deps:
-      if re.search(req, d):
-        found = True
-        break
+    found = any(re.search(req, d) for d in deps)
     if not found:
-      print('  ' + req)
+      print(f'  {req}')
   print(' Redundand:')
   for req in descr['excluded']:
     for d in deps:
       if re.search(req, d):
-        print('  ' + d)
+        print(f'  {d}')
 
 DEPS = [
     {

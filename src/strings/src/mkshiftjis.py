@@ -13,8 +13,7 @@ class ShiftJIS:
   def __init__(self, stream):
     self._codes = {}
     for line in stream:
-      props = ShiftJIS.LINEFORMAT.match(line)
-      if props:
+      if props := ShiftJIS.LINEFORMAT.match(line):
         jis = int(props.group(1), 16)
         uni = int(props.group(2), 16)
         self._codes[jis] = uni
@@ -27,7 +26,7 @@ class ShiftJIS:
     for jis in self._codes:
       uni = self._codes.get(jis)
       print("0x%04x -> 0x%04x" % (jis, uni), file = sys.stderr)
-    if 0 != len(self._codes):
+    if len(self._codes) != 0:
       raise Exception("Not all jis codes are covered by ranges")
     
   def _dumpTable(self, min, max, stream):

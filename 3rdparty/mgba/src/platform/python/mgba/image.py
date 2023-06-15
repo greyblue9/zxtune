@@ -16,7 +16,7 @@ class Image:
 	def constitute(self):
 		if self.stride <= 0:
 			self.stride = self.width
-		self.buffer = ffi.new("color_t[{}]".format(self.stride * self.height))
+		self.buffer = ffi.new(f"color_t[{self.stride * self.height}]")
 
 	def savePNG(self, f):
 		p = png.PNG(f)

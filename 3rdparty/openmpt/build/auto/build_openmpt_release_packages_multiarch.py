@@ -17,37 +17,36 @@ for arg in sys.argv:
 	if arg == '--localtools':
 		path7z = "build\\tools\\7zip\\7z.exe"
 		pathISCC = "build\\tools\\innosetup\\{app}\\ISCC.exe"
-	if arg == '--singlethreaded':
-		singleThreaded = True
-	if arg == '--noninteractive':
+	elif arg == '--noninteractive':
 		interactive = False
+	elif arg == '--singlethreaded':
+		singleThreaded = True
 
 def get_version_number():
-    with open('common/versionNumber.h', 'r') as f:
-        lines = f.readlines()
-    majormajor = 0
-    major = 0
-    minor = 0
-    minorminor = 0
-    for line in lines:
-        tokens = line.split()
-        if len(tokens) == 3:
-            if tokens[0] == '#define':
-                if tokens[1] == 'VER_MAJORMAJOR':
-                    majormajor = int(tokens[2])
-                if tokens[1] == 'VER_MAJOR':
-                    major = int(tokens[2])
-                if tokens[1] == 'VER_MINOR':
-                    minor = int(tokens[2])
-                if tokens[1] == 'VER_MINORMINOR':
-                    minorminor = int(tokens[2])
-    if majormajor < 1:
-        raise Exception("Could not parse version!")
-    if major < 1:
-        raise Exception("Could not parse version!")
-    if minor == 0 and minorminor == 0:
-        raise Exception("Could not parse version!")
-    return ("%d.%02d.%02d.%02d" % (majormajor, major, minor, minorminor), "%d.%02d" % (majormajor, major))
+	with open('common/versionNumber.h', 'r') as f:
+	    lines = f.readlines()
+	majormajor = 0
+	major = 0
+	minor = 0
+	minorminor = 0
+	for line in lines:
+		tokens = line.split()
+		if len(tokens) == 3 and tokens[0] == '#define':
+			if tokens[1] == 'VER_MAJORMAJOR':
+			    majormajor = int(tokens[2])
+			if tokens[1] == 'VER_MAJOR':
+			    major = int(tokens[2])
+			if tokens[1] == 'VER_MINOR':
+			    minor = int(tokens[2])
+			if tokens[1] == 'VER_MINORMINOR':
+			    minorminor = int(tokens[2])
+	if majormajor < 1:
+	    raise Exception("Could not parse version!")
+	if major < 1:
+	    raise Exception("Could not parse version!")
+	if minor == 0 and minorminor == 0:
+	    raise Exception("Could not parse version!")
+	return ("%d.%02d.%02d.%02d" % (majormajor, major, minor, minorminor), "%d.%02d" % (majormajor, major))
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 os.chdir("../..")
@@ -62,14 +61,18 @@ def remove_dir(dirname):
 	if os.path.isdir(dirname):
 		shutil.rmtree(dirname)
 
-openmpt_version_name = "OpenMPT-" + openmpt_version
-openmpt_zip_x86_basepath = "installer/OpenMPT-" + openmpt_version + "-x86/"
-openmpt_zip_x86_legacy_basepath = "installer/OpenMPT-" + openmpt_version + "-x86-legacy/"
-openmpt_zip_amd64_basepath = "installer/OpenMPT-" + openmpt_version + "-amd64/"
-openmpt_zip_amd64_legacy_basepath = "installer/OpenMPT-" + openmpt_version + "-amd64-legacy/"
-openmpt_zip_arm_basepath = "installer/OpenMPT-" + openmpt_version + "-arm/"
-openmpt_zip_arm64_basepath = "installer/OpenMPT-" + openmpt_version + "-arm64/"
-openmpt_zip_symbols_basepath = "installer/OpenMPT-" + openmpt_version + "-symbols/"
+openmpt_version_name = f"OpenMPT-{openmpt_version}"
+openmpt_zip_x86_basepath = f"installer/OpenMPT-{openmpt_version}-x86/"
+openmpt_zip_x86_legacy_basepath = (
+	f"installer/OpenMPT-{openmpt_version}-x86-legacy/"
+)
+openmpt_zip_amd64_basepath = f"installer/OpenMPT-{openmpt_version}-amd64/"
+openmpt_zip_amd64_legacy_basepath = (
+	f"installer/OpenMPT-{openmpt_version}-amd64-legacy/"
+)
+openmpt_zip_arm_basepath = f"installer/OpenMPT-{openmpt_version}-arm/"
+openmpt_zip_arm64_basepath = f"installer/OpenMPT-{openmpt_version}-arm64/"
+openmpt_zip_symbols_basepath = f"installer/OpenMPT-{openmpt_version}-symbols/"
 openmpt_zip_x86_path = openmpt_zip_x86_basepath
 openmpt_zip_x86_legacy_path = openmpt_zip_x86_legacy_basepath
 openmpt_zip_amd64_path = openmpt_zip_amd64_basepath
@@ -93,8 +96,8 @@ def copy_binaries(from_path, to_path):
     copy_file(from_path, to_path, "openmpt-wine-support.zip")
 
 def copy_pluginbridge(from_path, arch, to_path):
-    copy_file(from_path + arch + "/", to_path, "PluginBridge-" + arch + ".exe")
-    copy_file(from_path + arch + "/", to_path, "PluginBridgeLegacy-" + arch + ".exe")
+	copy_file(from_path + arch + "/", to_path, f"PluginBridge-{arch}.exe")
+	copy_file(from_path + arch + "/", to_path, f"PluginBridgeLegacy-{arch}.exe")
 
 def copy_symbols(from_path, to_path):
     os.makedirs(to_path)
@@ -104,8 +107,8 @@ def copy_symbols(from_path, to_path):
     copy_file(from_path, to_path, "openmpt-soundtouch.pdb")
 
 def copy_symbols_pluginbridge(from_path, to_path, arch):
-    copy_file(from_path, to_path, "PluginBridge-" + arch + ".pdb")
-    copy_file(from_path, to_path, "PluginBridgeLegacy-" + arch + ".pdb")
+	copy_file(from_path, to_path, f"PluginBridge-{arch}.pdb")
+	copy_file(from_path, to_path, f"PluginBridgeLegacy-{arch}.pdb")
 
 def copy_other(to_path, openmpt_version_short):
     copy_tree("packageTemplate/", to_path, "ExampleSongs")

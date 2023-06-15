@@ -9,27 +9,19 @@ from cached_property import cached_property
 
 def find(path):
     core = lib.mCoreFind(path.encode('UTF-8'))
-    if core == ffi.NULL:
-        return None
-    return Core._init(core)
+    return None if core == ffi.NULL else Core._init(core)
 
 def findVF(vf):
     core = lib.mCoreFindVF(vf.handle)
-    if core == ffi.NULL:
-        return None
-    return Core._init(core)
+    return None if core == ffi.NULL else Core._init(core)
 
 def loadPath(path):
     core = find(path)
-    if not core or not core.loadFile(path):
-        return None
-    return core
+    return None if not core or not core.loadFile(path) else core
 
 def loadVF(vf):
     core = findVF(vf)
-    if not core or not core.loadROM(vf):
-        return None
-    return core
+    return None if not core or not core.loadROM(vf) else core
 
 def needsReset(f):
     def wrapper(self, *args, **kwargs):
@@ -116,9 +108,7 @@ class Core(object):
 
     @staticmethod
     def _keysToInt(*args, **kwargs):
-        keys = 0
-        if 'raw' in kwargs:
-            keys = kwargs['raw']
+        keys = kwargs.get('raw', 0)
         for key in args:
             keys |= 1 << key
         return keys
